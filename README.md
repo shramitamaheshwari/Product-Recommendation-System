@@ -1,5 +1,14 @@
 # Setup Guide - AI Product Recommendation System
 
+## 📸 Screenshots
+
+### Home Page
+![Home Page](./screenshots/homepage.png)
+
+### Search Results
+![Search Results](./screenshots/search-results1.png)
+![Search Results](./screenshots/search-results2.png)
+
 ## 📋 Complete File Structure
 
 Create this exact folder structure:
@@ -9,6 +18,7 @@ ai-product-recommendation/
 ├── public/
 │   └── index.html
 ├── src/
+│   ├── products.json
 │   ├── App.js
 │   ├── App.css
 │   ├── index.js
@@ -281,10 +291,10 @@ In `src/App.css`, find and replace:
 ```
 
 ### Add More Products
-In `src/App.js`, add to the `products` array:
+In `products.json`, add to the `products` array:
 ```javascript
 {
-  id: 19,
+  id: 101,
   name: 'Your Product',
   category: 'phone',
   price: 599,
