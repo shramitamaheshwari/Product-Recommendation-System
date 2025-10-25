@@ -9,7 +9,7 @@ import {
   Watch,
   Headphones,
 } from "lucide-react";
-import productData from "./products.json"; // your single JSON file
+import productData from "./products.json"; // your JSON file
 import "./App.css";
 
 const iconMap = {
@@ -41,6 +41,16 @@ const iconMap = {
   "Gaming Controller": Laptop,
 };
 
+// ✅ Normalize product data
+const products = productData.map((p) => ({
+  id: p.ID,
+  name: p.Name,
+  category: p.Category?.toLowerCase(),
+  price: p["Price (USD)"],
+  rating: p["Rating (1-5)"],
+  icon: iconMap[p.Category] || Smartphone,
+}));
+
 const ProductRecommendationSystem = () => {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,51 +58,39 @@ const ProductRecommendationSystem = () => {
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
 
-  // ✅ Normalize your JSON keys
-  const products = productData.map((p) => ({
-    id: p.ID,
-    name: p.Name,
-    category: p.Category?.toLowerCase(),
-    price: p["Price (USD)"],
-    rating: p["Rating (1-5)"],
-    icon: iconMap[p.Category] || Smartphone,
-  }));
+  // ✅ Call Hugging Face Zero-Shot Classification
+  const fetchAIRecommendations = async (userQuery) => {
+    try {
+      const candidateLabels = products.map((p) => p.name); // or categories if you prefer
+      const response = await fetch(
+        "https://api-inference.huggingface.co/models/facebook/bart-large-mnli",
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer ${API_KEY}",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            inputs: userQuery,
+            parameters: { candidate_labels: candidateLabels },
+          }),
+        }
+      );
 
-  const localRecommendations = (userQuery) => {
-    const queryLower = userQuery.toLowerCase();
+      const data = await response.json();
 
-    let maxPrice = Infinity;
-    const priceMatch =
-      queryLower.match(/under\s+\$?(\d+)/i) ||
-      queryLower.match(/below\s+\$?(\d+)/i);
-    if (priceMatch) maxPrice = parseInt(priceMatch[1]);
+      if (!data.labels) return [];
 
-    let category = null;
-    if (queryLower.includes("phone")) category = "phone";
-    else if (queryLower.includes("laptop")) category = "laptop";
-    else if (queryLower.includes("tablet")) category = "tablet";
-    else if (queryLower.includes("watch")) category = "wearable";
-    else if (queryLower.includes("headphone")) category = "headphones";
-    else if (queryLower.includes("speaker")) category = "smart speaker";
+      const recommendedLabels = data.labels.slice(0, 5); // top 5
+      const recommendedProducts = products.filter((p) =>
+        recommendedLabels.includes(p.name)
+      );
 
-    const wantsPremium =
-      queryLower.includes("best") || queryLower.includes("premium");
-    const wantsBudget =
-      queryLower.includes("budget") || queryLower.includes("cheap");
-
-    let filtered = products.filter((p) => {
-      if (category && !p.category.includes(category)) return false;
-      if (p.price > maxPrice) return false;
-      return true;
-    });
-
-    if (wantsPremium)
-      filtered.sort((a, b) => b.rating - a.rating || b.price - a.price);
-    else if (wantsBudget)
-      filtered.sort((a, b) => a.price - b.price);
-    else filtered.sort((a, b) => b.rating - a.rating);
-
-    return filtered.slice(0, 5);
+      return recommendedProducts;
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
   };
 
   const handleSearch = async () => {
@@ -106,7 +104,7 @@ const ProductRecommendationSystem = () => {
     setHasSearched(true);
 
     try {
-      const results = localRecommendations(query);
+      const results = await fetchAIRecommendations(query);
       setRecommendations(results);
 
       if (results.length === 0) {
